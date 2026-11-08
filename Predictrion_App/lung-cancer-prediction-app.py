@@ -16,7 +16,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-HF_TOKEN_PLACEHOLDER = "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"
+HF_TOKEN_PLACEHOLDER = "ValueHiddenForSecurityReason"
 
 ROOT = Path("/kaggle/working/lung_ensemble_app")
 MODEL_DIR = ROOT / "models"
