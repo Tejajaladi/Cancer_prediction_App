@@ -17,7 +17,7 @@ from pathlib import Path
 warnings.filterwarnings("ignore")
 
 # HuggingFace token──
-HF_TOKEN = "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" 
+HF_TOKEN = "ValueHiddenForSecurity" 
 os.environ["HF_TOKEN"]             = HF_TOKEN
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 os.environ["HF_HUB_DISABLE_XET"]   = "1"
