@@ -115,23 +115,50 @@ models. Intended for research use only — not a clinical diagnostic tool.
 
 ## Typical Workflow
 
-1. Inspect raw DICOM data — `Tciad-processing/`
-2. Preprocess into patches + manifest — `Automated_Pipeline/`
-3. Verify the dataset is training-ready — `Model_Training/`
-4. Explore the data and generate the EDA report — `Cancer_EDA/`
-5. Train and validate the model — `Lung Cancer Classification Using EfficientNet-B0/`
-6. Run ensemble inference — `Predictrion_App/`
+Run the stages in order; each stage consumes the previous stage's outputs.
+
+| Step | Folder | Script | Produces |
+|------|--------|--------|----------|
+| 1. Inspect raw data | `Tciad-processing/` | `tciad-processing.py` | `dicom_metadata.csv`, sample slice previews |
+| 2. Preprocess | `Automated_Pipeline/` | `automated-multimodal-ct-pet-preprocessing-pipeline.py` | CT/PET patches, `manifest.csv`, train/val/test + LOOCV splits |
+| 3. Verify readiness | `Model_Training/` | `model_training.py` | Pass/fail dataset validation report |
+| 4. Explore + report | `Cancer_EDA/` | `cancer-eda.py` | `eda_figures/`, `part5_EDA_report.docx` |
+| 5. Train + validate | `Lung Cancer Classification Using EfficientNet-B0/` | `lung-cancer-classification-using-efficientnet-b0.py` | Checkpoints and metrics (pushed to Hugging Face Hub) |
+| 6. Inference | `Predictrion_App/` | `lung-cancer-prediction-app.py` | Streamlit app served through a Cloudflare tunnel |
+
+Steps 2 and 3 are designed to run inside the Kaggle environment (or locally
+after adjusting the path constants). Step 2 must finish before step 3, 4, or 5
+can run, since all of them read `manifest.csv` and the generated patch files.
 
 ## Data Conventions
 
-- CT patch: `(2, 128, 128, 64)` — channels are lung window, mediastinal window
-- PET patch: `(1, 128, 128, 64)` — SUV normalized to `[0, 1]`
-- Fused input: `(3, 128, 128, 64)` — CT + PET concatenated on the channel axis
-- Label order used by the classifier: `[Adenocarcinoma, Small Cell, Squamous, Large Cell]`
+| Artifact | Shape / dtype | Notes |
+|----------|---------------|-------|
+| CT patch | `(2, 128, 128, 64)` float32 | Channel 0 = lung window, channel 1 = mediastinal window; values in `[0, 1]` |
+| PET patch | `(1, 128, 128, 64)` float32 | SUV-normalized to `[0, 1]` |
+| Zero PET patch | `(1, 128, 128, 64)` float32 | All zeros; used for CT-only patients |
+| Fused model input | `(3, 128, 128, 64)` float32 | CT (2 channels) + PET (1 channel) concatenated on the channel axis |
+
+- Spatial patch size: 128 x 128 pixels over 64 slices (depth).
+- Label order used by the classifier: `[Adenocarcinoma, Small Cell, Squamous, Large Cell]`.
+- Splits: stratified train/val/test for classes A/B/G, plus Leave-One-Patient-Out
+  (LOOCV) folds for the under-represented Large Cell (E) class.
+- `manifest.csv` is the single source of truth linking patient ID, class label,
+  patch file paths, and split assignment.
 
 ## Notes
 
-- The pipeline scripts use Kaggle paths (`/kaggle/input`, `/kaggle/working`);
-  update the path constants when running elsewhere.
-- Several scripts contain a hard-coded Hugging Face token. Move it to an
-  environment variable or Kaggle secret and rotate the exposed token.
+- **Paths:** the pipeline scripts target Kaggle (`/kaggle/input/...` and
+  `/kaggle/working/part5`). Update the path constants in each script when
+  running outside Kaggle.
+- **Secrets:** a Hugging Face token is referenced in the training and prediction
+  scripts. Move it to an environment variable or a Kaggle secret, and rotate any
+  token that has already been committed to git.
+- **Environment:** requires Python 3 with `pydicom`, `numpy`, `pandas`,
+  `matplotlib`, `openpyxl`, `python-docx`, `scikit-learn`, `torch`, `timm`, and
+  `streamlit`.
+- **Data:** download the TCIA Lung-PET-CT-Dx collection together with its
+  clinical and annotation files before running the pipeline.
+- **Disclaimer:** this project is for research and educational use only.
+  Predictions are not a medical diagnosis and must not be used for clinical
+  decision-making.
